@@ -15,6 +15,9 @@
             <i class="fa fa-sort-amount-desc" aria-hidden="true" ng-show="isDescOrder"></i>
             {{metricTypeDesc}}&nbsp;实时监控
           </span>
+          <span class="brand" style="font-size: 13px;">
+            总的QPS&nbsp;{{totalQPS}}
+          </span>
           <button class="btn btn-outline-primary" style="float: right;margin-right: 10px;height: 30px;font-size: 12px;" ng-click="setDescOrder()"
             ng-if="!isDescOrder">降序</button>
           <button class="btn btn-outline-primary" style="float: right;margin-right: 10px;height: 30px;font-size: 12px;" ng-click="setAscOrder()"
