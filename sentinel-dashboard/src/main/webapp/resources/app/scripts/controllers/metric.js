@@ -202,7 +202,6 @@ app.controller('MetricCtl', ['$scope', '$stateParams', 'MetricService', '$interv
           for (i = 0; i < totalCount; i++) {
             $scope.emptyObjs.push({});
           }
-          let total = 0;
           $.each(identityNames, function (idx, identityName) {
             var identityDatas = metricsObj[identityName];
             var metrics = {};
@@ -210,11 +209,8 @@ app.controller('MetricCtl', ['$scope', '$stateParams', 'MetricService', '$interv
             // metrics.data = identityDatas;
             metrics.data = fillZeros(identityDatas);
             metrics.shortData = lastOfArray(identityDatas, 6);
-            total += metrics.shortData[0].passQps;
-            total += metrics.shortData[0].blockQps;
             $scope.metrics.push(metrics);
           });
-          $scope.totalQPS = total;
           // push an empty element in the last, for ng-init reasons.
           $scope.metrics.push([]);
         } else {

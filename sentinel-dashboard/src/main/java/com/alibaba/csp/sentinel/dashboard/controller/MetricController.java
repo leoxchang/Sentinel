@@ -15,13 +15,7 @@
  */
 package com.alibaba.csp.sentinel.dashboard.controller;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.alibaba.csp.sentinel.dashboard.domain.Result;
@@ -102,23 +96,54 @@ public class MetricController {
             }
             resources = searched;
         }
+
+        final Map<String, Iterable<MetricVo>> map = new ConcurrentHashMap<>();
+        long time = System.currentTimeMillis();
+        List<MetricVo> totalList = new ArrayList<>();
+        for (final String resource : resources) {
+            List<MetricEntity> entities = metricStore.queryByAppAndResourceBetween(
+                    app, resource, startTime, endTime);
+            logger.debug("resource={}, entities.size()={}", resource, entities == null ? "null" : entities.size());
+            List<MetricVo> vos = MetricVo.fromMetricEntities(entities, resource);
+            Iterable<MetricVo> vosSorted = sortMetricVoAndDistinct(vos);
+            int i = 0;
+            Iterator<MetricVo> iterator = vosSorted.iterator();
+            while (iterator.hasNext()) {
+                MetricVo next = iterator.next();
+                MetricVo metricVo = null;
+                if (i < totalList.size()) {
+                    metricVo = totalList.get(i);
+                }
+                if (metricVo == null) {
+                    metricVo = new MetricVo();
+                    metricVo.setResource("汇总");
+                    metricVo.setPassQps(0L);
+                    metricVo.setBlockQps(0L);
+                    metricVo.setSuccessQps(0L);
+                    metricVo.setExceptionQps(0L);
+                }
+                metricVo.setPassQps(metricVo.getPassQps() + next.getPassQps());
+                metricVo.setBlockQps(metricVo.getBlockQps() + next.getBlockQps());
+                metricVo.setSuccessQps(metricVo.getSuccessQps() + next.getSuccessQps());
+                metricVo.setExceptionQps(metricVo.getExceptionQps() + next.getExceptionQps());
+                metricVo.setTimestamp(next.getTimestamp());
+                metricVo.setRt(next.getRt());
+                metricVo.setCount(next.getCount());
+                metricVo.setGmtCreate(next.getGmtCreate());
+                i++;
+                totalList.add(metricVo);
+            }
+            map.put(resource, vosSorted);
+        }
+        map.put("汇总", totalList);
+        resources.add(0, "汇总");
         int totalPage = (resources.size() + pageSize - 1) / pageSize;
         List<String> topResource = new ArrayList<>();
         if (pageIndex <= totalPage) {
             topResource = resources.subList((pageIndex - 1) * pageSize,
-                Math.min(pageIndex * pageSize, resources.size()));
+                    Math.min(pageIndex * pageSize, resources.size()));
         }
-        final Map<String, Iterable<MetricVo>> map = new ConcurrentHashMap<>();
         logger.debug("topResource={}", topResource);
-        long time = System.currentTimeMillis();
-        for (final String resource : topResource) {
-            List<MetricEntity> entities = metricStore.queryByAppAndResourceBetween(
-                app, resource, startTime, endTime);
-            logger.debug("resource={}, entities.size()={}", resource, entities == null ? "null" : entities.size());
-            List<MetricVo> vos = MetricVo.fromMetricEntities(entities, resource);
-            Iterable<MetricVo> vosSorted = sortMetricVoAndDistinct(vos);
-            map.put(resource, vosSorted);
-        }
         logger.debug("queryTopResourceMetric() total query time={} ms", System.currentTimeMillis() - time);
         Map<String, Object> resultMap = new HashMap<>(16);
         resultMap.put("totalCount", resources.size());
@@ -154,7 +179,7 @@ public class MetricController {
             return Result.ofFail(-1, "time intervalMs is too big, must <= 1h");
         }
         List<MetricEntity> entities = metricStore.queryByAppAndResourceBetween(
-            app, identity, startTime, endTime);
+                app, identity, startTime, endTime);
         List<MetricVo> vos = MetricVo.fromMetricEntities(entities, identity);
         return Result.ofSuccess(sortMetricVoAndDistinct(vos));
     }
