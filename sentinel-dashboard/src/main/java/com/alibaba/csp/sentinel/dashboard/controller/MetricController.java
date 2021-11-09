@@ -98,45 +98,19 @@ public class MetricController {
             resources = searched;
         }
 
-        final Map<String, Iterable<MetricVo>> map = new ConcurrentHashMap<>();
+        final Map<String, Iterable<MetricVo>> map = new ConcurrentHashMap<>(16);
         long time = System.currentTimeMillis();
-        List<MetricVo> totalList = new ArrayList<>();
+        List<MetricEntity> totalList = metricStore.queryByAppAndBetween(app, startTime, endTime);
         for (final String resource : resources) {
             List<MetricEntity> entities = metricStore.queryByAppAndResourceBetween(
                     app, resource, startTime, endTime);
             logger.debug("resource={}, entities.size()={}", resource, entities == null ? "null" : entities.size());
             List<MetricVo> vos = MetricVo.fromMetricEntities(entities, resource);
             Iterable<MetricVo> vosSorted = sortMetricVoAndDistinct(vos);
-            int i = 0;
-            Iterator<MetricVo> iterator = vosSorted.iterator();
-            while (iterator.hasNext()) {
-                MetricVo next = iterator.next();
-                MetricVo metricVo = null;
-                if (i < totalList.size()) {
-                    metricVo = totalList.get(i);
-                }
-                if (metricVo == null) {
-                    metricVo = new MetricVo();
-                    metricVo.setResource("汇总");
-                    metricVo.setPassQps(0L);
-                    metricVo.setBlockQps(0L);
-                    metricVo.setSuccessQps(0L);
-                    metricVo.setExceptionQps(0L);
-                }
-                metricVo.setPassQps(metricVo.getPassQps() + next.getPassQps());
-                metricVo.setBlockQps(metricVo.getBlockQps() + next.getBlockQps());
-                metricVo.setSuccessQps(metricVo.getSuccessQps() + next.getSuccessQps());
-                metricVo.setExceptionQps(metricVo.getExceptionQps() + next.getExceptionQps());
-                metricVo.setTimestamp(next.getTimestamp());
-                metricVo.setRt(next.getRt());
-                metricVo.setCount(next.getCount());
-                metricVo.setGmtCreate(next.getGmtCreate());
-                i++;
-                totalList.add(metricVo);
-            }
             map.put(resource, vosSorted);
         }
-        map.put("汇总", totalList);
+
+        map.put("汇总", sortMetricVoAndDistinct(MetricVo.fromMetricEntities(totalList)));
         if (StringUtils.isEmpty(searchKey)) {
             resources.add(0, "汇总");
         }
