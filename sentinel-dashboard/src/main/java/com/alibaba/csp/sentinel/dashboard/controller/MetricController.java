@@ -20,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.alibaba.csp.sentinel.dashboard.domain.Result;
 import com.alibaba.csp.sentinel.dashboard.repository.metric.MetricsRepository;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -136,7 +137,9 @@ public class MetricController {
             map.put(resource, vosSorted);
         }
         map.put("汇总", totalList);
-        resources.add(0, "汇总");
+        if (StringUtils.isEmpty(searchKey)) {
+            resources.add(0, "汇总");
+        }
         int totalPage = (resources.size() + pageSize - 1) / pageSize;
         List<String> topResource = new ArrayList<>();
         if (pageIndex <= totalPage) {
