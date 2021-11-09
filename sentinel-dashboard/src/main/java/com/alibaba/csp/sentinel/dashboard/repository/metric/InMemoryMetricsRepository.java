@@ -18,6 +18,7 @@ package com.alibaba.csp.sentinel.dashboard.repository.metric;
 import com.alibaba.csp.sentinel.dashboard.datasource.entity.MetricEntity;
 import com.alibaba.csp.sentinel.util.StringUtil;
 import com.alibaba.csp.sentinel.util.TimeUtil;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -162,5 +163,51 @@ public class InMemoryMetricsRepository implements MetricsRepository<MetricEntity
         } finally {
             readWriteLock.readLock().unlock();
         }
+    }
+
+    @Override
+    public List<MetricEntity> queryByAppAndBetween(String app, long startTime, long endTime) {
+        List<MetricEntity> results = new ArrayList<>();
+        if (StringUtil.isBlank(app)) {
+            return results;
+        }
+        Map<String, LinkedHashMap<Long, MetricEntity>> resourceMap = allMetrics.get(app);
+        if (resourceMap == null) {
+            return results;
+        }
+        LinkedHashMap<Long, MetricEntity> metricsAllMap = new LinkedHashMap<>();
+        readWriteLock.readLock().lock();
+        try {
+            for (Entry<String, LinkedHashMap<Long, MetricEntity>> resourceEntry : resourceMap.entrySet()) {
+                LinkedHashMap<Long, MetricEntity> metricsMap = resourceEntry.getValue();
+                for (Entry<Long, MetricEntity> metricEntry : metricsMap.entrySet()) {
+                    MetricEntity metricEntity = metricsAllMap.get(metricEntry.getKey());
+                    if (metricEntity == null) {
+                        metricEntity = new MetricEntity();
+                        BeanUtils.copyProperties(metricEntry.getValue(), metricEntity);
+                        metricEntity.setResource("汇总");
+                        metricsAllMap.put(metricEntry.getKey(), metricEntity);
+                    } else {
+                        metricEntity.setPassQps(metricEntity.getPassQps() + metricEntry.getValue().getPassQps());
+                        metricEntity.setBlockQps(metricEntity.getBlockQps() + metricEntry.getValue().getBlockQps());
+                        metricEntity.setSuccessQps(metricEntity.getSuccessQps() + metricEntry.getValue().getSuccessQps());
+                        metricEntity.setExceptionQps(metricEntity.getExceptionQps() + metricEntry.getValue().getExceptionQps());
+                        metricEntity.setRt(metricEntity.getRt() + metricEntry.getValue().getRt());
+                        metricsAllMap.put(metricEntry.getKey(), metricEntity);
+                    }
+                }
+            }
+        } finally {
+            readWriteLock.readLock().unlock();
+        }
+        if (metricsAllMap == null || metricsAllMap.isEmpty()) {
+            return results;
+        }
+        for (Entry<Long, MetricEntity> entry : metricsAllMap.entrySet()) {
+            if (entry.getKey() >= startTime && entry.getKey() <= endTime) {
+                results.add(entry.getValue());
+            }
+        }
+        return results;
     }
 }
