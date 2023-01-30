@@ -43,8 +43,6 @@ public class GateWayFlowRuleNacosProvider implements DynamicRuleProvider<List<Ga
     public List<GatewayFlowRuleEntity> getRules(String appName) throws Exception {
         String rules = configService.getConfig(appName + NacosConfigUtil.GW_FLOW_DATA_ID_POSTFIX,
             NacosConfigUtil.GROUP_ID, 3000);
-        System.out.println(appName + NacosConfigUtil.GW_FLOW_DATA_ID_POSTFIX);
-        System.out.println(rules);
         if (StringUtil.isEmpty(rules)) {
             return new ArrayList<>();
         }
